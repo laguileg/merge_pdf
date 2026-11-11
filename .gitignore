@@ -1,0 +1,21 @@
+# Entorno y caché de Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Empaquetado
+build/
+dist/
+*.exe
+*.zip
+
+# Configuración local y secretos
+.env
+*token_cache*
+
+# Logs
+*.log
+
+# PDF de prueba o de trabajo (pueden contener información privada)
+*.pdf
