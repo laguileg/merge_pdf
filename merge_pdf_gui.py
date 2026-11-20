@@ -10,6 +10,7 @@ Genera:  un PDF unido en la carpeta del primer archivo de la lista,
          con nombre PDFs_unidos_AAAAMMDD_HHMMSS.pdf (editable).
          Si ocurre un error, el detalle técnico queda en merge_pdf_gui.log.
 
+Recursos: assets/ con el logo y el ícono de la marca Prisma Sol (opcional).
 Requiere: py -m pip install -r requirements.txt   (pypdf)
 
 Uso:
@@ -37,7 +38,7 @@ except ImportError:
     print("Falta la librería pypdf. Instálala con:\n  py -m pip install pypdf")
     sys.exit(1)
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 NOMBRE_APP = "Merge PDF"
 
 if getattr(sys, "frozen", False):  # empaquetado como .exe con PyInstaller
@@ -48,26 +49,42 @@ RUTA_LOG = CARPETA_APP / "merge_pdf_gui.log"
 
 # delay=True: el .log solo se crea si de verdad ocurre un error.
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,  # el .log es solo para errores y avisos
     format="%(asctime)s  %(levelname)-8s %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[logging.FileHandler(RUTA_LOG, encoding="utf-8", delay=True)],
 )
 log = logging.getLogger("merge_pdf")
 
-# ─── Paleta de colores ───
-COLOR_AZUL = "#033E84"
-COLOR_ROJO = "#D84141"
-COLOR_GRIS = "#666666"
-COLOR_FONDO_AZUL = "#E9F5FF"
-COLOR_FONDO_BLANCO = "#FFFFFF"
-COLOR_AZUL_OSCURO = "#022B5C"
+# ─── Sistema de marca "Luciano Aguilera · Prisma Sol" ───
+COLOR_VIOLETA = "#5B3DF5"          # protagonista: encabezado, botón principal
+COLOR_VIOLETA_TEXTO = "#4F32E6"    # violeta para texto sobre fondos claros; hover
+COLOR_SOL = "#FFD23F"              # acento: línea bajo el encabezado
+COLOR_TINTA = "#17123A"
+COLOR_LILA = "#EEEAFF"             # superficie tintada: registro, barra, resultado
+COLOR_SURFACE = "#FAFAFC"          # fondo de la ventana
+COLOR_SURFACE_RAISED = "#FFFFFF"   # campos y listas
+COLOR_INK = "#17123A"              # texto principal
+COLOR_INK_MUTED = "#57536B"        # texto secundario
+COLOR_LINE = "#E5E3EE"             # bordes
+COLOR_ON_VIOLETA = "#FFFFFF"
+COLOR_EXITO = "#0E7A55"
+COLOR_ALERTA = "#A35400"
+COLOR_ERROR = "#C42B47"
 
-FUENTES_PREFERIDAS = ("Source Sans 3", "Segoe UI")
-FONT_PRIMARY = ("Segoe UI", 11)
-FONT_BOLD = ("Segoe UI", 11, "bold")
-FONT_TITLE = ("Segoe UI", 16, "bold")
+# Urbanist para títulos y Inter para el resto; si no están instaladas, los respaldos del sistema.
+FUENTES_TITULO = ("Urbanist", "Century Gothic", "Segoe UI")
+FUENTES_TEXTO = ("Inter", "Segoe UI", "Arial")
+FONT_PRIMARY = ("Segoe UI", 10)
+FONT_BOLD = ("Segoe UI", 10, "bold")
+FONT_SECTION = ("Segoe UI", 12, "bold")
+FONT_TITLE = ("Segoe UI", 20, "bold")
 FONT_SMALL = ("Segoe UI", 9)
+FONT_BIG = ("Segoe UI", 22, "bold")
+
+CARPETA_RECURSOS = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+RUTA_LOGO = CARPETA_RECURSOS / "assets" / "logo-horizontal-negativo-violeta.png"
+RUTA_ICONO = CARPETA_RECURSOS / "assets" / "isotipo-app.png"
 
 TEXTO_AYUDA = """\
 Cómo usar Merge PDF
@@ -117,14 +134,17 @@ def crear_parser() -> argparse.ArgumentParser:
 
 
 def configurar_fuentes(raiz: tk.Tk) -> None:
-    """Usa la primera fuente preferida instalada en el equipo."""
-    global FONT_PRIMARY, FONT_BOLD, FONT_TITLE, FONT_SMALL
+    """Usa la primera fuente de marca instalada en el equipo, o su respaldo."""
+    global FONT_PRIMARY, FONT_BOLD, FONT_SECTION, FONT_TITLE, FONT_SMALL, FONT_BIG
     instaladas = set(tkfont.families(raiz))
-    familia = next((f for f in FUENTES_PREFERIDAS if f in instaladas), "Segoe UI")
-    FONT_PRIMARY = (familia, 11)
-    FONT_BOLD = (familia, 11, "bold")
-    FONT_TITLE = (familia, 16, "bold")
-    FONT_SMALL = (familia, 9)
+    titulo = next((f for f in FUENTES_TITULO if f in instaladas), "Segoe UI")
+    texto = next((f for f in FUENTES_TEXTO if f in instaladas), "Segoe UI")
+    FONT_PRIMARY = (texto, 10)
+    FONT_BOLD = (texto, 10, "bold")
+    FONT_SECTION = (titulo, 12, "bold")
+    FONT_TITLE = (titulo, 20, "bold")
+    FONT_SMALL = (texto, 9)
+    FONT_BIG = (titulo, 22, "bold")
 
 
 # ─── Motor Merge PDF ───
@@ -199,9 +219,10 @@ class MergePDFApp(tk.Tk):
     def __init__(self, pdfs_iniciales: List[Path] | None = None):
         super().__init__()
         configurar_fuentes(self)
+        self._poner_icono()
         self.title(f"{NOMBRE_APP} {VERSION}")
-        self.geometry("660x700")
-        self.configure(bg=COLOR_FONDO_BLANCO)
+        self.geometry("660x760")
+        self.configure(bg=COLOR_SURFACE)
         self.resizable(False, False)
 
         self.merger = PDFMerger()
@@ -235,140 +256,148 @@ class MergePDFApp(tk.Tk):
                             f"{NOMBRE_APP} {VERSION}\n\nUne varios PDF en uno solo.\n"
                             "Licencia MIT.")
 
-    # ── Franja degradada ──
-    def _draw_gradient_bar(self, parent):
-        canvas = tk.Canvas(parent, height=4, bg=COLOR_FONDO_BLANCO, highlightthickness=0)
-        canvas.pack(fill="x", padx=30, pady=(18, 8))
-        canvas.update_idletasks()
-        w = canvas.winfo_width() or 600
-        for i in range(w):
-            r_ratio = i / w
-            r = int(3 + (216 - 3) * r_ratio)
-            g = int(62 + (65 - 62) * r_ratio)
-            b = int(132 + (65 - 132) * r_ratio)
-            color = f"#{r:02x}{g:02x}{b:02x}"
-            canvas.create_line(i, 0, i, 4, fill=color)
+    # ── Encabezado de marca ──
+    def _build_header(self, titulo: str):
+        header = tk.Frame(self, bg=COLOR_VIOLETA, padx=30, pady=18)
+        header.pack(fill="x")
+        try:
+            self._logo_img = tk.PhotoImage(file=str(RUTA_LOGO))
+            tk.Label(header, image=self._logo_img, bg=COLOR_VIOLETA).pack(anchor="w")
+        except tk.TclError:
+            log.warning("No se encontró el logo en %s; la ventana sigue sin él.", RUTA_LOGO)
+        tk.Label(header, text=titulo, font=FONT_TITLE, fg=COLOR_ON_VIOLETA,
+                 bg=COLOR_VIOLETA, anchor="w").pack(fill="x", pady=(12, 0))
+        # Línea sol: el acento de la marca, una sola vez en la ventana.
+        tk.Frame(self, bg=COLOR_SOL, height=4).pack(fill="x", pady=(0, 14))
+
+    def _poner_icono(self):
+        try:
+            self._icono_img = tk.PhotoImage(file=str(RUTA_ICONO))
+            self.iconphoto(True, self._icono_img)
+        except tk.TclError:
+            log.warning("No se encontró el ícono en %s.", RUTA_ICONO)
 
     # ── Build UI ──
     def _build_ui(self):
-        self._draw_gradient_bar(self)
+        self._build_header("Unir PDFs")
 
-        title = tk.Label(self, text="Unir PDFs", font=FONT_TITLE, fg=COLOR_AZUL, bg=COLOR_FONDO_BLANCO)
-        title.pack(pady=(0, 10))
-
-        main = tk.Frame(self, bg=COLOR_FONDO_BLANCO, padx=30)
+        main = tk.Frame(self, bg=COLOR_SURFACE, padx=30)
         main.pack(fill="both", expand=True)
 
         # ── Botones agregar / quitar ──
         self._section(main, "Archivos PDF a unir")
 
-        btn_row = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        btn_row = tk.Frame(main, bg=COLOR_SURFACE)
         btn_row.pack(fill="x", pady=(0, 6))
 
         btn_add = tk.Button(btn_row, text="+ Agregar PDFs", font=FONT_BOLD,
-                            bg=COLOR_AZUL, fg="white", activebackground=COLOR_AZUL_OSCURO,
-                            activeforeground="white", bd=0, padx=14, pady=4,
+                            bg=COLOR_VIOLETA, fg=COLOR_ON_VIOLETA, activebackground=COLOR_VIOLETA_TEXTO,
+                            activeforeground=COLOR_ON_VIOLETA, bd=0, padx=14, pady=4,
                             cursor="hand2", command=self._add_files)
         btn_add.pack(side="left")
 
         btn_add_folder = tk.Button(btn_row, text="+ Agregar carpeta", font=FONT_PRIMARY,
-                                   bg=COLOR_AZUL, fg="white", activebackground=COLOR_AZUL_OSCURO,
-                                   activeforeground="white", bd=0, padx=14, pady=4,
+                                   bg=COLOR_LILA, fg=COLOR_VIOLETA_TEXTO, activebackground=COLOR_LINE,
+                                   activeforeground=COLOR_VIOLETA_TEXTO, bd=0, padx=14, pady=4,
                                    cursor="hand2", command=self._add_folder)
         btn_add_folder.pack(side="left", padx=(8, 0))
 
         btn_clear = tk.Button(btn_row, text="Limpiar lista", font=FONT_PRIMARY,
-                              bg=COLOR_GRIS, fg="white", activebackground="#555555",
-                              activeforeground="white", bd=0, padx=14, pady=4,
+                              bg=COLOR_LILA, fg=COLOR_INK, activebackground=COLOR_LINE,
+                              activeforeground=COLOR_INK, bd=0, padx=14, pady=4,
                               cursor="hand2", command=self._clear_list)
         btn_clear.pack(side="right")
 
         # ── Listbox con scrollbar ──
-        list_frame = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        list_frame = tk.Frame(main, bg=COLOR_SURFACE)
         list_frame.pack(fill="both", expand=True, pady=(0, 6))
 
         scrollbar = tk.Scrollbar(list_frame)
         scrollbar.pack(side="right", fill="y")
 
-        self.listbox = tk.Listbox(list_frame, font=FONT_SMALL, bg=COLOR_FONDO_AZUL,
-                                  fg=COLOR_GRIS, selectbackground=COLOR_AZUL,
-                                  selectforeground="white", bd=1, relief="solid",
+        self.listbox = tk.Listbox(list_frame, font=FONT_PRIMARY, bg=COLOR_SURFACE_RAISED,
+                                  fg=COLOR_INK, selectbackground=COLOR_VIOLETA,
+                                  selectforeground=COLOR_ON_VIOLETA, bd=0, relief="flat",
+                                  highlightthickness=1, highlightbackground=COLOR_LINE,
+                                  highlightcolor=COLOR_VIOLETA,
                                   height=10, yscrollcommand=scrollbar.set,
                                   selectmode="extended")
         self.listbox.pack(fill="both", expand=True)
         scrollbar.config(command=self.listbox.yview)
 
         # ── Botones ordenar / quitar selección ──
-        order_row = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        order_row = tk.Frame(main, bg=COLOR_SURFACE)
         order_row.pack(fill="x", pady=(0, 8))
 
         btn_up = tk.Button(order_row, text="▲ Subir", font=FONT_SMALL,
-                           bg=COLOR_FONDO_AZUL, fg=COLOR_AZUL, bd=1, padx=8, pady=2,
+                           bg=COLOR_LILA, fg=COLOR_VIOLETA_TEXTO, bd=0, padx=8, pady=2,
                            cursor="hand2", command=self._move_up)
         btn_up.pack(side="left")
 
         btn_down = tk.Button(order_row, text="▼ Bajar", font=FONT_SMALL,
-                             bg=COLOR_FONDO_AZUL, fg=COLOR_AZUL, bd=1, padx=8, pady=2,
+                             bg=COLOR_LILA, fg=COLOR_VIOLETA_TEXTO, bd=0, padx=8, pady=2,
                              cursor="hand2", command=self._move_down)
         btn_down.pack(side="left", padx=(4, 0))
 
         btn_remove = tk.Button(order_row, text="✕ Quitar selección", font=FONT_SMALL,
-                               bg=COLOR_FONDO_AZUL, fg=COLOR_ROJO, bd=1, padx=8, pady=2,
+                               bg=COLOR_LILA, fg=COLOR_ERROR, bd=0, padx=8, pady=2,
                                cursor="hand2", command=self._remove_selected)
         btn_remove.pack(side="left", padx=(4, 0))
 
         self.count_label = tk.Label(order_row, text="0 archivos", font=FONT_SMALL,
-                                    fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO)
+                                    fg=COLOR_INK_MUTED, bg=COLOR_SURFACE)
         self.count_label.pack(side="right")
 
         # ── Nombre de salida ──
         self._section(main, "Archivo de salida")
 
-        out_frame = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        out_frame = tk.Frame(main, bg=COLOR_SURFACE)
         out_frame.pack(fill="x", pady=(0, 8))
 
         tk.Label(out_frame, text="Se guarda en la carpeta del primer PDF. Nombre:",
-                 font=FONT_SMALL, fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO).pack(anchor="w")
+                 font=FONT_SMALL, fg=COLOR_INK_MUTED, bg=COLOR_SURFACE).pack(anchor="w")
 
         self.output_name_var = tk.StringVar(value="")
         self.entry_output = tk.Entry(out_frame, textvariable=self.output_name_var,
-                                     font=FONT_PRIMARY, bg=COLOR_FONDO_AZUL, width=40)
+                                     font=FONT_PRIMARY, bg=COLOR_SURFACE_RAISED, fg=COLOR_INK, relief="flat",
+                                     highlightthickness=1, highlightbackground=COLOR_LINE,
+                                     highlightcolor=COLOR_VIOLETA, width=40)
         self.entry_output.pack(fill="x", pady=(2, 0), ipady=3)
 
         # ── Barra progreso ──
         self.progress_label = tk.Label(main, text="", font=FONT_SMALL,
-                                       fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO)
+                                       fg=COLOR_INK_MUTED, bg=COLOR_SURFACE)
         self.progress_label.pack(fill="x", pady=(6, 2))
 
         style = ttk.Style()
         style.theme_use("default")
         style.configure("App.Horizontal.TProgressbar",
-                        troughcolor=COLOR_FONDO_AZUL, background=COLOR_AZUL, thickness=18)
+                        troughcolor=COLOR_LILA, background=COLOR_VIOLETA, thickness=18)
         self.progress = ttk.Progressbar(main, style="App.Horizontal.TProgressbar",
                                         mode="determinate", maximum=100)
         self.progress.pack(fill="x", pady=(0, 8))
 
         # ── Botones acción ──
-        action_row = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        action_row = tk.Frame(main, bg=COLOR_SURFACE)
         action_row.pack(fill="x", pady=(2, 6))
 
         self.btn_merge = tk.Button(action_row, text="  Unir PDFs  ", font=FONT_BOLD,
-                                   bg=COLOR_ROJO, fg="white", activebackground="#b83030",
-                                   activeforeground="white", bd=0, padx=24, pady=8,
+                                   bg=COLOR_VIOLETA, fg=COLOR_ON_VIOLETA, activebackground=COLOR_VIOLETA_TEXTO,
+                                   activeforeground=COLOR_ON_VIOLETA, bd=0, padx=24, pady=8,
                                    cursor="hand2", command=self._run_merge)
         self.btn_merge.pack(side="left")
 
         self.btn_open_folder = tk.Button(action_row, text="Abrir carpeta", font=FONT_PRIMARY,
-                                         bg=COLOR_AZUL, fg="white",
-                                         activebackground=COLOR_AZUL_OSCURO,
-                                         activeforeground="white", bd=0, padx=16, pady=8,
+                                         bg=COLOR_LILA, fg=COLOR_VIOLETA_TEXTO,
+                                         activebackground=COLOR_LINE,
+                                         activeforeground=COLOR_VIOLETA_TEXTO, bd=0, padx=16, pady=8,
                                          cursor="hand2", state="disabled",
                                          command=self._open_output_folder)
         self.btn_open_folder.pack(side="right")
 
         # ── Log ──
-        self.log_text = tk.Text(main, height=4, font=FONT_SMALL, bg=COLOR_FONDO_AZUL,
-                                fg=COLOR_GRIS, bd=1, relief="solid", state="disabled",
+        self.log_text = tk.Text(main, height=4, font=FONT_SMALL, bg=COLOR_LILA,
+                                fg=COLOR_INK, bd=0, relief="flat", state="disabled",
                                 wrap="word")
         self.log_text.pack(fill="x", pady=(4, 12))
 
@@ -376,8 +405,8 @@ class MergePDFApp(tk.Tk):
 
     # ── Helpers ──
     def _section(self, parent, text):
-        lbl = tk.Label(parent, text=text, font=FONT_BOLD, fg=COLOR_AZUL,
-                       bg=COLOR_FONDO_BLANCO, anchor="w")
+        lbl = tk.Label(parent, text=text, font=FONT_SECTION, fg=COLOR_INK,
+                       bg=COLOR_SURFACE, anchor="w")
         lbl.pack(fill="x", pady=(6, 2))
 
     def _refresh_listbox(self):

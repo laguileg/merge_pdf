@@ -28,6 +28,13 @@ Sin argumentos abre la ventana vacía; con rutas de PDF, los deja cargados en la
 | `-h`, `--help` | Muestra la ayuda |
 | `--version` | Muestra la versión |
 
+## Diseño
+
+La ventana usa el sistema de marca **Luciano Aguilera · Prisma Sol**: encabezado violeta con el logo, línea de acento sol, títulos en **Urbanist** y texto en **Inter**.
+
+- Las fuentes son gratuitas en [Google Fonts](https://fonts.google.com/): instala [Urbanist](https://fonts.google.com/specimen/Urbanist) e [Inter](https://fonts.google.com/specimen/Inter) en Windows para verla tal cual. Si no están, usa Century Gothic y Segoe UI.
+- El logo y el ícono están en la carpeta `assets/`. Si falta, la herramienta funciona igual, sin logo.
+
 ## Archivos que genera
 
 - `PDFs_unidos_AAAAMMDD_HHMMSS.pdf` (nombre editable) en la carpeta del **primer** PDF de la lista.
@@ -42,7 +49,7 @@ Sin argumentos abre la ventana vacía; con rutas de PDF, los deja cargados en la
 
 ```bat
 py -m pip install pyinstaller
-pyinstaller --onefile --windowed --name merge_pdf merge_pdf_gui.py
+pyinstaller --onefile --windowed --name merge_pdf --icon assets\isotipo-app.ico --add-data "assets;assets" merge_pdf_gui.py
 ```
 
 El ejecutable queda en `dist\merge_pdf.exe`.
@@ -51,8 +58,11 @@ El ejecutable queda en `dist\merge_pdf.exe`.
 
 [MIT](LICENSE): puedes usar, modificar y compartir este código libremente, manteniendo el aviso de autoría.
 
+La licencia cubre el código. El logo y los elementos de la marca Prisma Sol (`assets/`) son de Luciano Aguilera y no están incluidos: ver [assets/MARCA.md](assets/MARCA.md).
+
 ## Historial
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 2026-11-19 | 1.1.0 | Nuevo diseño con el sistema de marca Prisma Sol: encabezado violeta con logo, línea sol, Urbanist + Inter, botones y campos con la nueva paleta, ícono de ventana. Sin cambios de funcionamiento. |
 | 2026-11-11 | 1.0.0 | Primera versión pública: ayuda en español (`--help`, menú Ayuda), `--version`, PDF iniciales por línea de comandos y registro de errores en `.log`. |
